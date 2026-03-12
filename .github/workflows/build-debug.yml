@@ -1,15 +1,24 @@
-
 name: Build Debug APK
-on: { workflow_dispatch: {} }
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
-        with: { distribution: 'temurin', java-version: '17' }
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Prepare Android SDK (API 33)
         run: |
           sudo apt-get update
@@ -20,14 +29,27 @@ jobs:
           mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           rm cmdtools.zip
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-33" "build-tools;33.0.2" "platform-tools"
+
       - name: Download Gradle 8.2.1
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.2.1-bin.zip
           unzip -q gradle-8.2.1-bin.zip
           echo "$GITHUB_WORKSPACE/gradle-8.2.1/bin" >> $GITHUB_PATH
-      - name: Build Debug APK
-        env: { ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }} }
-        run: gradle assembleDebug --stacktrace
+
+      # ⬇️ Génère le wrapper dans ton repo à la volée
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.2.1
+
+      - name: Build Debug APK (with wrapper)
+        env:
+          ANDROID_SDK_ROOT: $HOME/android-sdk
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --version
+          ./gradlew assembleDebug --stacktrace
+
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
-        with: { name: PowerEventBridge-newlog-debug, path: app/build/outputs/apk/debug/*.apk }
+        with:
+          name: PowerEventBridge-newlog-debug
+          path: app/build/outputs/apk/debug/*.apk
