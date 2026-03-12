@@ -1,6 +1,6 @@
 
 # PowerEventBridge (com.newlog.powerbridge)
-
+Build trigger
 Detecte l'état de charge (CHARGING / NOT_CHARGING) et envoie un intent BARCODE vers Ivanti Velocity.
 Un Toast s'affiche sur le terminal: `POWER STATE: <state>`.
 
