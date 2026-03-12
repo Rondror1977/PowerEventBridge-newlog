@@ -1,13 +1,20 @@
-
 name: Build Release APK (signed)
-on: { workflow_dispatch: {} }
+
+on:
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
-        with: { distribution: 'temurin', java-version: '17' }
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Prepare Android SDK (API 33)
         run: |
           sudo apt-get update
@@ -18,14 +25,23 @@ jobs:
           mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           rm cmdtools.zip
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-33" "build-tools;33.0.2" "platform-tools"
+
       - name: Download Gradle 8.2.1
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.2.1-bin.zip
           unzip -q gradle-8.2.1-bin.zip
           echo "$GITHUB_WORKSPACE/gradle-8.2.1/bin" >> $GITHUB_PATH
-      - name: Build Release APK
-        env: { ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }} }
-        run: gradle assembleRelease --stacktrace
+
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.2.1
+
+      - name: Build Release APK (with wrapper)
+        env:
+          ANDROID_SDK_ROOT: $HOME/android-sdk
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --stacktrace
+
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
         with:
@@ -34,11 +50,17 @@ jobs:
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
+
       - name: Rename APK with version
         shell: bash
         run: |
-          VER_NAME=$(grep versionName app/build.gradle | head -1 | sed -E 's/[^0-9\.]+//g')
-          for f in app/build/outputs/apk/release/*.apk; do mv "$f" "PowerEventBridge-newlog-v${VER_NAME}-release.apk"; done
+          VER_NAME=$(grep versionName app/build.gradle | head -1 | sed -E 's/[^0-9\\.]+//g')
+          for f in app/build/outputs/apk/release/*.apk; do
+            mv "$f" "PowerEventBridge-newlog-v${VER_NAME}-release.apk"
+          done
+
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
-        with: { name: PowerEventBridge-newlog-release, path: PowerEventBridge-newlog-v*-release.apk }
+        with:
+          name: PowerEventBridge-newlog-release
+          path: PowerEventBridge-newlog-v*-release.apk
